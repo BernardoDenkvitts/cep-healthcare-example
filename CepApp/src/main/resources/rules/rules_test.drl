@@ -1,0 +1,63 @@
+package rules;
+
+import org.example.Dto.Data;
+import org.example.Dto.Type;
+
+import java.util.List;
+
+dialect "mvel";
+
+declare Data
+    @role( event )
+    @timestamp( timestamp )
+    @expires( 60s )
+end
+
+
+rule "rule-1-SevereInfectionOrSepsis"
+    when
+        $fever : Data( type == Type.TEMPERATURE, valueOne >= 38 ) over window:time( 1m )
+        $tachycardia : Data( patientId == $fever.patientId, type == Type.SPO2, valueTwo > 100 ) over window:time( 1m )
+        $hypotension : Data( patientId == $fever.patientId, type == Type.BLOOD_PRESSURE, valueOne < 110, valueTwo < 70 ) over window:time( 1m )
+        $low_spo2 : Data( patientId == $fever.patientId, type == Type.SPO2, valueOne < 95 ) over window:time( 1m )
+    then
+        System.out.println("Severe infection or sepsis");
+end
+
+
+rule "rule-2-ShockOrCirculatoryFailure"
+    when
+        $hypotension : Data( type == Type.BLOOD_PRESSURE, valueOne < 110, valueTwo < 70 ) over window:time( 1m )
+        $tachycardia : Data( patientId == $hypotension.patientId, type == Type.SPO2, valueTwo > 100 ) over window:time( 1m )
+        $low_spo2 : Data( patientId == $hypotension.patientId, type == Type.SPO2, valueOne < 95 ) over window:time( 1m )
+    then
+        System.out.println("Shock or circulatory failure");
+end
+
+rule "rule-3-StressOrHypertension"
+    when
+        $hypertension : Data( type == Type.BLOOD_PRESSURE, valueOne >= 130, valueTwo >= 85 ) over window:time( 1m )
+        $tachycardia : Data( patientId == $hypertension.patientId, type == Type.SPO2, valueTwo > 100 ) over window:time( 1m )
+    then
+        System.out.println("Stress, cardiovascular disease, or kidney failure");
+end
+
+
+rule "rule-4-EarlyStageInflammatoryDisease"
+    when
+        $fever : Data( type == Type.TEMPERATURE, valueOne >= 38 ) over window:time( 1m )
+        $hypotension : Data( patientId == $fever.patientId, type == Type.BLOOD_PRESSURE, valueOne < 110, valueTwo < 70 ) over window:time( 1m )
+        $normal_spo2 : Data( patientId == $fever.patientId, type == Type.SPO2, valueOne >= 95 && valueOne <= 100 ) over window:time( 1m )
+    then
+        System.out.println("Early-stage inflammatory or infectious diseases");
+end
+
+
+rule "rule-5-HeartProblemsOrConductionDisorder"
+    when
+        $bradycardia : Data( type == Type.SPO2, valueTwo < 50 ) over window:time( 1m )
+        $hypotension : Data( patientId == $bradycardia.patientId, type == Type.BLOOD_PRESSURE, valueOne < 110, valueTwo < 70 ) over window:time( 1m )
+        $normal_spo2 : Data( patientId == $bradycardia.patientId, type == Type.SPO2, valueOne >= 95 && valueOne <= 100 ) over window:time( 1m )
+    then
+        System.out.println("Heart problems or conduction system disorders, such as heart block");
+end
